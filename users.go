@@ -13,7 +13,7 @@ type User struct {
 	Passwd   string             `json:"passwd,omitempty" form:"passwd,omitempty"`
 }
 
-// UsersService interacts with the paper-related endpoints in arxivlib's API
+// UsersService interacts with the user-related endpoints in arxivlib's API
 type UsersService interface {
 	// Get a user
 	Get(id primitive.ObjectID) (*User, error)
