@@ -54,12 +54,12 @@ func (s *usersStore) List(opt *arxivlib.UserListOptions) ([]*arxivlib.User, erro
 	coll := s.db.Collection("users")
 	var users []*arxivlib.User
 
-	filter := bson.D{
-		{"username", primitive.Regex{Pattern: opt.Username, Options: "i"}},
+	filter := bson.M{
+		"username": primitive.Regex{Pattern: opt.Username, Options: "i"},
 	}
-	projection := bson.D{
-		{"_id", 1},
-		{"username", 1},
+	projection := bson.M{
+		"_id":      1,
+		"username": 1,
 	}
 
 	cursor, err := coll.Find(
