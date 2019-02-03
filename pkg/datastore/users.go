@@ -2,7 +2,7 @@ package datastore
 
 import (
 	"context"
-	"log"
+	"time"
 
 	"github.com/mongodb/mongo-go-driver/bson/primitive"
 	"github.com/mongodb/mongo-go-driver/mongo/options"
@@ -21,7 +21,9 @@ func (s *usersStore) Get(id primitive.ObjectID) (*arxivlib.User, error) {
 
 	filter := bson.M{"_id": id}
 
-	err := coll.FindOne(context.Background(), filter).Decode(&user)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := coll.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +37,9 @@ func (s *usersStore) Authenticate(username, passwd string) (*arxivlib.User, erro
 
 	filter := bson.M{"username": username, "passwd": passwd}
 
-	err := coll.FindOne(context.Background(), filter).Decode(&user)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := coll.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
 		return nil, err
 	}
@@ -44,9 +48,6 @@ func (s *usersStore) Authenticate(username, passwd string) (*arxivlib.User, erro
 }
 
 func (s *usersStore) List(opt *arxivlib.UserListOptions) ([]*arxivlib.User, error) {
-	if s.db == nil {
-		s.db = DB
-	}
 	if opt == nil {
 		opt = &arxivlib.UserListOptions{}
 	}
@@ -62,8 +63,10 @@ func (s *usersStore) List(opt *arxivlib.UserListOptions) ([]*arxivlib.User, erro
 		"username": 1,
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	cursor, err := coll.Find(
-		context.Background(),
+		ctx,
 		filter,
 		options.Find().SetProjection(projection),
 	)
@@ -87,19 +90,37 @@ func (s *usersStore) List(opt *arxivlib.UserListOptions) ([]*arxivlib.User, erro
 	return users, nil
 }
 
-func (s *usersStore) Create(user *arxivlib.User) (bool, error) {
+func (s *usersStore) Create(user *arxivlib.User) (created bool, err error) {
 	coll := s.db.Collection("users")
 
-	result, err := coll.InsertOne(
-		context.Background(),
-		&user,
-	)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result, err := coll.InsertOne(ctx, &user)
 	if err != nil {
-		return false, err
+		return
 	}
 
 	id := result.InsertedID
-	log.Printf("User created with _id: %v\n", id)
+	if id != nil {
+		created = true
+	}
 
-	return true, nil
+	return
+}
+
+func (s *usersStore) Delete(id primitive.ObjectID) (deleted bool, err error) {
+	coll := s.db.Collection("users")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result, err := coll.DeleteOne(ctx, bson.M{"_id": id})
+	if err != nil {
+		return
+	}
+
+	if result.DeletedCount > 0 {
+		deleted = true
+	}
+
+	return
 }
